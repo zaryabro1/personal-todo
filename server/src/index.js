@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import mongoose from "mongoose";
 import routes from "./routes/index.js";
 import { dbConnection } from "./utils/db.js";
 
@@ -19,12 +18,6 @@ app.get("/health", (req, res) => {
 });
 
 dbConnection(process.env.MONGODB_URL);
-
-// mongoose.connect(process.env.MONGODB_URL).then(() => {
-//   console.log("Connected to MongoDB");
-// }).catch((err) => {
-//   console.log(err);
-// });
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
