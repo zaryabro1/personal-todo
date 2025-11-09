@@ -1,5 +1,7 @@
 export interface Todo {
-  id: string;
+  _id: string;
+  id?: string; // For compatibility
+  userId: string;
   title: string;
   description: string;
   completed: boolean;

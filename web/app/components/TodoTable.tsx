@@ -32,7 +32,7 @@ export default function TodoTable({ todos, onToggleComplete, onEdit, onDelete }:
         </thead>
         <tbody>
           {todos.map((todo) => (
-            <tr key={todo.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50">
+            <tr key={todo._id || todo.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50">
               <td className="py-3 px-4">
                 <div className={`font-medium ${todo.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
                   {todo.title}
@@ -45,7 +45,7 @@ export default function TodoTable({ todos, onToggleComplete, onEdit, onDelete }:
               </td>
               <td className="py-3 px-4 text-center">
                 <button
-                  onClick={() => onToggleComplete(todo.id)}
+                  onClick={() => onToggleComplete(todo._id || todo.id || '')}
                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     todo.completed
                       ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -64,7 +64,7 @@ export default function TodoTable({ todos, onToggleComplete, onEdit, onDelete }:
                     Edit
                   </button>
                   <button
-                    onClick={() => onDelete(todo.id)}
+                    onClick={() => onDelete(todo._id || todo.id || '')}
                     className="px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
                   >
                     Delete
