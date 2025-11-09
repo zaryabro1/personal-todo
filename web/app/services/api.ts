@@ -1,9 +1,22 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6969/api/v1';
+import { Todo } from '../types/todo';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+}
+
+// API Todo type (from MongoDB)
+interface ApiTodo {
+  _id: string;
+  userId: string;
+  title: string;
+  description: string;
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 class ApiService {
@@ -41,7 +54,7 @@ class ApiService {
       let data;
       try {
         data = await response.json();
-      } catch (parseError) {
+      } catch {
         throw new Error('Invalid response from server');
       }
       
@@ -68,16 +81,16 @@ class ApiService {
   }
 
   // Get all todos for a user
-  async getTodos(userId: string): Promise<ApiResponse<any[]>> {
-    return this.request(`/todos?userId=${encodeURIComponent(userId)}`, {
+  async getTodos(userId: string): Promise<ApiResponse<ApiTodo[]>> {
+    return this.request<ApiTodo[]>(`/todos?userId=${encodeURIComponent(userId)}`, {
       method: 'GET',
       headers: this.getHeaders(userId),
     });
   }
 
   // Create a new todo
-  async createTodo(userId: string, title: string, description: string = ''): Promise<ApiResponse<any>> {
-    return this.request('/todos', {
+  async createTodo(userId: string, title: string, description: string = ''): Promise<ApiResponse<ApiTodo>> {
+    return this.request<ApiTodo>('/todos', {
       method: 'POST',
       headers: this.getHeaders(userId),
       body: JSON.stringify({ userId, title, description }),
@@ -85,16 +98,16 @@ class ApiService {
   }
 
   // Get a todo by ID
-  async getTodoById(userId: string, id: string): Promise<ApiResponse<any>> {
-    return this.request(`/todos/${id}`, {
+  async getTodoById(userId: string, id: string): Promise<ApiResponse<ApiTodo>> {
+    return this.request<ApiTodo>(`/todos/${id}`, {
       method: 'GET',
       headers: this.getHeaders(userId),
     });
   }
 
   // Update a todo
-  async updateTodo(userId: string, id: string, title: string, description: string = ''): Promise<ApiResponse<any>> {
-    return this.request(`/todos/${id}`, {
+  async updateTodo(userId: string, id: string, title: string, description: string = ''): Promise<ApiResponse<ApiTodo>> {
+    return this.request<ApiTodo>(`/todos/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(userId),
       body: JSON.stringify({ userId, title, description }),
@@ -102,8 +115,8 @@ class ApiService {
   }
 
   // Toggle todo complete status
-  async toggleTodoComplete(userId: string, id: string): Promise<ApiResponse<any>> {
-    return this.request(`/todos/${id}/toggle`, {
+  async toggleTodoComplete(userId: string, id: string): Promise<ApiResponse<ApiTodo>> {
+    return this.request<ApiTodo>(`/todos/${id}/toggle`, {
       method: 'PATCH',
       headers: this.getHeaders(userId),
       body: JSON.stringify({ userId }),
@@ -111,8 +124,8 @@ class ApiService {
   }
 
   // Delete a todo
-  async deleteTodo(userId: string, id: string): Promise<ApiResponse<any>> {
-    return this.request(`/todos/${id}`, {
+  async deleteTodo(userId: string, id: string): Promise<ApiResponse<ApiTodo>> {
+    return this.request<ApiTodo>(`/todos/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(userId),
       body: JSON.stringify({ userId }),

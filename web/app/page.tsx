@@ -35,10 +35,16 @@ function TodoApp() {
     setError(null);
     try {
       const response = await apiService.getTodos(user.id);
-      // Map _id to id for compatibility
-      const todosWithId = response.data.map((todo: any) => ({
-        ...todo,
+      // Map _id to id for compatibility and convert dates
+      const todosWithId: Todo[] = response.data.map((todo) => ({
+        _id: todo._id,
         id: todo._id,
+        userId: todo.userId,
+        title: todo.title,
+        description: todo.description,
+        completed: todo.completed,
+        createdAt: new Date(todo.createdAt),
+        updatedAt: new Date(todo.updatedAt),
       }));
       setTodos(todosWithId);
     } catch (err) {
