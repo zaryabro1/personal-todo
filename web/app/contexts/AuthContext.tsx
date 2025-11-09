@@ -1,0 +1,154 @@
+'use client';
+
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, AuthContextType } from '../types/auth';
+
+interface StoredUser {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  // Load user from localStorage on mount (client-side only)
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          localStorage.removeItem('user');
+        }
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    // Frontend-only authentication for now
+    // In a real app, this would call your API
+    if (typeof window === 'undefined') return false;
+    
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Check if user exists in localStorage (simple demo)
+    const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
+    const foundUser = storedUsers.find((u) => u.email === email && u.password === password);
+    
+    if (foundUser) {
+      const userData: User = {
+        id: foundUser.id,
+        email: foundUser.email,
+        name: foundUser.name
+      };
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setIsLoading(false);
+      return true;
+    }
+    
+    setIsLoading(false);
+    return false;
+  };
+
+  const signup = async (email: string, password: string, name: string): Promise<boolean> => {
+    // Frontend-only authentication for now
+    if (typeof window === 'undefined') return false;
+    
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Check if user already exists
+    const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
+    const existingUser = storedUsers.find((u) => u.email === email);
+    
+    if (existingUser) {
+      setIsLoading(false);
+      return false; // User already exists
+    }
+    
+    // Create new user
+    const newUser = {
+      id: Math.random().toString(36).substr(2, 9),
+      email,
+      password, // In production, this would be hashed
+      name
+    };
+    
+    storedUsers.push(newUser);
+    localStorage.setItem('users', JSON.stringify(storedUsers));
+    
+    const userData: User = {
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name
+    };
+    
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setIsLoading(false);
+    return true;
+  };
+
+  const logout = () => {
+    setUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+    }
+  };
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <AuthContext.Provider
+        value={{
+          user: null,
+          isAuthenticated: false,
+          login,
+          signup,
+          logout,
+          isLoading: true
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+    );
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        signup,
+        logout,
+        isLoading
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}

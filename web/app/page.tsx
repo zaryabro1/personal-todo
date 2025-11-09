@@ -1,103 +1,226 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Todo, TodoFormData } from './types/todo';
+import TodoTable from './components/TodoTable';
+import AddTodoButton from './components/AddTodoButton';
+import TodoForm from './components/TodoForm';
+import DeleteConfirmationModal from './components/DeleteConfirmationModal';
+import AuthGuard from './components/AuthGuard';
+import { useAuth } from './contexts/AuthContext';
+import { apiService } from './services/api';
+
+function TodoApp() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [todoToDelete, setTodoToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, logout } = useAuth();
+
+  // Fetch todos on mount and when user changes
+  useEffect(() => {
+    if (user?.id) {
+      fetchTodos();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const fetchTodos = async () => {
+    if (!user?.id) return;
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.getTodos(user.id);
+      // Map _id to id for compatibility
+      const todosWithId = response.data.map((todo: any) => ({
+        ...todo,
+        id: todo._id,
+      }));
+      setTodos(todosWithId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch todos');
+      console.error('Error fetching todos:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddTodo = () => {
+    setEditingTodo(null);
+    setShowForm(true);
+  };
+
+  const handleEditTodo = (todo: Todo) => {
+    setEditingTodo(todo);
+    setShowForm(true);
+  };
+
+  const handleDeleteTodo = (id: string) => {
+    const todo = todos.find(t => (t.id || t._id) === id);
+    if (todo) {
+      setTodoToDelete({ id: todo._id || todo.id || '', title: todo.title });
+      setShowDeleteModal(true);
+    }
+  };
+
+  const handleFormSubmit = async (data: TodoFormData) => {
+    if (!user?.id) return;
+
+    setError(null);
+    try {
+      if (editingTodo) {
+        // Edit existing todo
+        const todoId = editingTodo._id || editingTodo.id;
+        if (!todoId) return;
+        
+        await apiService.updateTodo(user.id, todoId, data.title, data.description);
+      } else {
+        // Add new todo
+        await apiService.createTodo(user.id, data.title, data.description);
+      }
+      
+      // Refresh todos list
+      await fetchTodos();
+      setShowForm(false);
+      setEditingTodo(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save todo');
+      console.error('Error saving todo:', err);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingTodo(null);
+  };
+
+  const handleToggleComplete = async (id: string) => {
+    if (!user?.id) return;
+
+    setError(null);
+    try {
+      await apiService.toggleTodoComplete(user.id, id);
+      // Refresh todos list
+      await fetchTodos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update todo');
+      console.error('Error toggling todo:', err);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!todoToDelete || !user?.id) return;
+
+    setError(null);
+    try {
+      await apiService.deleteTodo(user.id, todoToDelete.id);
+      // Refresh todos list
+      await fetchTodos();
+      setShowDeleteModal(false);
+      setTodoToDelete(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete todo');
+      console.error('Error deleting todo:', err);
+      setShowDeleteModal(false);
+      setTodoToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setTodoToDelete(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Todo App
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Manage your tasks efficiently
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-sm text-gray-600 dark:text-gray-400">Welcome,</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{user?.name}</div>
+              </div>
+              <button
+                onClick={logout}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Your Todos
+              </h2>
+              <AddTodoButton onClick={handleAddTodo} />
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {error && (
+              <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading todos...</p>
+              </div>
+            ) : (
+              <TodoTable
+                todos={todos}
+                onToggleComplete={handleToggleComplete}
+                onEdit={handleEditTodo}
+                onDelete={handleDeleteTodo}
+              />
+            )}
+          </div>
+        </div>
+
+        {showForm && (
+          <TodoForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            initialData={editingTodo ? { title: editingTodo.title, description: editingTodo.description } : undefined}
+            isEditing={!!editingTodo}
+          />
+        )}
+
+        {showDeleteModal && todoToDelete && (
+          <DeleteConfirmationModal
+            isOpen={showDeleteModal}
+            onConfirm={handleConfirmDelete}
+            onCancel={handleCancelDelete}
+            todoTitle={todoToDelete.title}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    <AuthGuard>
+      <TodoApp />
+    </AuthGuard>
   );
 }
