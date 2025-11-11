@@ -36,7 +36,7 @@ function TodoApp() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiService.getTodos(user.id);
+      const response = await apiService.getTodos();
       // Map _id to id for compatibility and convert dates
       const todosWithId: Todo[] = response.data.map((todo) => ({
         _id: todo._id,
@@ -87,10 +87,10 @@ function TodoApp() {
         const todoId = editingTodo._id || editingTodo.id;
         if (!todoId) return;
         
-        await apiService.updateTodo(user.id, todoId, data.title, data.description);
+        await apiService.updateTodo(todoId, data.title, data.description);
       } else {
         // Add new todo
-        await apiService.createTodo(user.id, data.title, data.description);
+        await apiService.createTodo(data.title, data.description);
       }
       
       // Refresh todos list
@@ -117,7 +117,7 @@ function TodoApp() {
 
     setError(null);
     try {
-      await apiService.toggleTodoComplete(user.id, id);
+      await apiService.toggleTodoComplete(id);
       // Refresh todos list
       await fetchTodos();
       showSuccess('Todo status updated successfully!');
@@ -134,7 +134,7 @@ function TodoApp() {
 
     setError(null);
     try {
-      await apiService.deleteTodo(user.id, todoToDelete.id);
+      await apiService.deleteTodo(todoToDelete.id);
       // Refresh todos list
       await fetchTodos();
       setShowDeleteModal(false);

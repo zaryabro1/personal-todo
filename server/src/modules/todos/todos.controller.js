@@ -2,20 +2,14 @@ import { todosService } from "./index.js";
 import { throwHttpError } from "../../utils/error.js";
 import status from "http-status";
 
-// Helper to extract userId from request (from body or headers)
+// Helper to extract userId from request (from auth middleware)
 const getUserId = (req) => {
-    return req.body?.userId || req.headers['x-user-id'] || req.query?.userId;
+    return req.userId; // Set by auth middleware
 }
 
 export const getTodos = async (req, res) => {
     try {
         const userId = getUserId(req);
-        if (!userId) {
-            return res.status(status.BAD_REQUEST).json({
-                success: false,
-                message: "User ID is required"
-            });
-        }
         const todos = await todosService.getTodos(userId);
         return res.json({
             success: true,
@@ -35,13 +29,6 @@ export const createTodo = async (req, res) => {
     try {
         const userId = getUserId(req);
         const { title, description } = req.body || {};
-        
-        if (!userId) {
-            return res.status(status.BAD_REQUEST).json({
-                success: false,
-                message: "User ID is required"
-            });
-        }
         
         if (!title) {
             return res.status(status.BAD_REQUEST).json({
@@ -77,13 +64,6 @@ export const getTodoById = async (req, res) => {
             });
         }
         
-        if (!userId) {
-            return res.status(status.BAD_REQUEST).json({
-                success: false,
-                message: "User ID is required"
-            });
-        }
-        
         const todo = await todosService.getTodoById(id, userId);
         if (!todo) {
             return res.status(status.NOT_FOUND).json({
@@ -116,13 +96,6 @@ export const updateTodo = async (req, res) => {
             return res.status(status.BAD_REQUEST).json({
                 success: false,
                 message: "ID is required"
-            });
-        }
-        
-        if (!userId) {
-            return res.status(status.BAD_REQUEST).json({
-                success: false,
-                message: "User ID is required"
             });
         }
         
@@ -167,13 +140,6 @@ export const toggleTodoComplete = async (req, res) => {
             });
         }
         
-        if (!userId) {
-            return res.status(status.BAD_REQUEST).json({
-                success: false,
-                message: "User ID is required"
-            });
-        }
-        
         const todo = await todosService.toggleTodoComplete(id, userId);
         if (!todo) {
             return res.status(status.NOT_FOUND).json({
@@ -205,13 +171,6 @@ export const deleteTodo = async (req, res) => {
             return res.status(status.BAD_REQUEST).json({
                 success: false,
                 message: "ID is required"
-            });
-        }
-        
-        if (!userId) {
-            return res.status(status.BAD_REQUEST).json({
-                success: false,
-                message: "User ID is required"
             });
         }
         
