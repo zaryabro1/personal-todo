@@ -1,7 +1,12 @@
 import { Todo } from '../types/todo';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-console.log('API_BASE_URL', API_BASE_URL);
+// Normalize API base URL - remove trailing /api/v1 if present
+const getApiBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6969';
+  return url.replace(/\/api\/v1\/?$/, '');
+};
+
+const API_BASE_URL = getApiBaseUrl();
 interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -20,16 +25,23 @@ interface ApiTodo {
 }
 
 class ApiService {
+  private getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('token');
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${API_BASE_URL}/api/v1${endpoint}`;
+    const token = this.getToken();
     
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
     };
@@ -100,63 +112,47 @@ class ApiService {
     }
   }
 
-  // Helper to add userId to headers
-  private getHeaders(userId: string): HeadersInit {
-    return {
-      'Content-Type': 'application/json',
-      'x-user-id': userId,
-    };
-  }
-
-  // Get all todos for a user
-  async getTodos(userId: string): Promise<ApiResponse<ApiTodo[]>> {
-    return this.request<ApiTodo[]>(`/todos?userId=${encodeURIComponent(userId)}`, {
+  // Get all todos for the authenticated user
+  async getTodos(): Promise<ApiResponse<ApiTodo[]>> {
+    return this.request<ApiTodo[]>('/todos', {
       method: 'GET',
-      headers: this.getHeaders(userId),
     });
   }
 
   // Create a new todo
-  async createTodo(userId: string, title: string, description: string = ''): Promise<ApiResponse<ApiTodo>> {
+  async createTodo(title: string, description: string = ''): Promise<ApiResponse<ApiTodo>> {
     return this.request<ApiTodo>('/todos', {
       method: 'POST',
-      headers: this.getHeaders(userId),
-      body: JSON.stringify({ userId, title, description }),
+      body: JSON.stringify({ title, description }),
     });
   }
 
   // Get a todo by ID
-  async getTodoById(userId: string, id: string): Promise<ApiResponse<ApiTodo>> {
+  async getTodoById(id: string): Promise<ApiResponse<ApiTodo>> {
     return this.request<ApiTodo>(`/todos/${id}`, {
       method: 'GET',
-      headers: this.getHeaders(userId),
     });
   }
 
   // Update a todo
-  async updateTodo(userId: string, id: string, title: string, description: string = ''): Promise<ApiResponse<ApiTodo>> {
+  async updateTodo(id: string, title: string, description: string = ''): Promise<ApiResponse<ApiTodo>> {
     return this.request<ApiTodo>(`/todos/${id}`, {
       method: 'PUT',
-      headers: this.getHeaders(userId),
-      body: JSON.stringify({ userId, title, description }),
+      body: JSON.stringify({ title, description }),
     });
   }
 
   // Toggle todo complete status
-  async toggleTodoComplete(userId: string, id: string): Promise<ApiResponse<ApiTodo>> {
+  async toggleTodoComplete(id: string): Promise<ApiResponse<ApiTodo>> {
     return this.request<ApiTodo>(`/todos/${id}/toggle`, {
       method: 'PATCH',
-      headers: this.getHeaders(userId),
-      body: JSON.stringify({ userId }),
     });
   }
 
   // Delete a todo
-  async deleteTodo(userId: string, id: string): Promise<ApiResponse<ApiTodo>> {
+  async deleteTodo(id: string): Promise<ApiResponse<ApiTodo>> {
     return this.request<ApiTodo>(`/todos/${id}`, {
       method: 'DELETE',
-      headers: this.getHeaders(userId),
-      body: JSON.stringify({ userId }),
     });
   }
 }

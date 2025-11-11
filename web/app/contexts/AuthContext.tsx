@@ -3,12 +3,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '../types/auth';
 
-interface StoredUser {
-  id: string;
-  email: string;
-  password: string;
-  name: string;
-}
+// Normalize API base URL - remove trailing /api/v1 if present
+const getApiBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6969';
+  return url.replace(/\/api\/v1\/?$/, '');
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,16 +18,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Load user from localStorage on mount (client-side only)
+  // Load user and token from localStorage on mount (client-side only)
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
+      const storedToken = localStorage.getItem('token');
+      if (storedUser && storedToken) {
         try {
           setUser(JSON.parse(storedUser));
         } catch {
           localStorage.removeItem('user');
+          localStorage.removeItem('token');
         }
       }
     }
@@ -34,8 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Frontend-only authentication for now
-    // In a real app, this would call your API
     if (typeof window === 'undefined') {
       return { success: false, error: 'Cannot authenticate in server environment' };
     }
@@ -58,40 +59,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if user exists in localStorage (simple demo)
-      const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-      const foundUser = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (!foundUser) {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
         setIsLoading(false);
-        return { success: false, error: 'Invalid email or password' };
+        return { success: false, error: data.message || 'Invalid email or password' };
       }
-      
-      if (foundUser.password !== password) {
-        setIsLoading(false);
-        return { success: false, error: 'Invalid email or password' };
-      }
-      
+
+      const { user, token } = data.data;
       const userData: User = {
-        id: foundUser.id,
-        email: foundUser.email,
-        name: foundUser.name
+        id: user.id,
+        email: user.email,
+        name: user.name,
       };
+
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', token);
       setIsLoading(false);
       return { success: true };
     } catch (error) {
       setIsLoading(false);
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          return { success: false, error: 'Cannot connect to server. Please check your connection.' };
+        }
+        return { success: false, error: error.message };
+      }
       return { success: false, error: 'An error occurred during login. Please try again.' };
     }
   };
 
   const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
-    // Frontend-only authentication for now
     if (typeof window === 'undefined') {
       return { success: false, error: 'Cannot sign up in server environment' };
     }
@@ -126,41 +133,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if user already exists
-      const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-      const existingUser = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (existingUser) {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
         setIsLoading(false);
-        return { success: false, error: 'An account with this email already exists' };
+        return { success: false, error: data.message || 'Failed to create account' };
       }
-      
-      // Create new user
-      const newUser = {
-        id: Math.random().toString(36).substr(2, 9),
-        email: email.trim(),
-        password, // In production, this would be hashed
-        name: name.trim()
-      };
-      
-      storedUsers.push(newUser);
-      localStorage.setItem('users', JSON.stringify(storedUsers));
-      
+
+      const { user, token } = data.data;
       const userData: User = {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name
+        id: user.id,
+        email: user.email,
+        name: user.name,
       };
-      
+
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', token);
       setIsLoading(false);
       return { success: true };
     } catch (error) {
       setIsLoading(false);
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          return { success: false, error: 'Cannot connect to server. Please check your connection.' };
+        }
+        return { success: false, error: error.message };
+      }
       return { success: false, error: 'An error occurred during sign up. Please try again.' };
     }
   };
@@ -169,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
     }
   };
 
