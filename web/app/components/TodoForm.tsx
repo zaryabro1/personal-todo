@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TodoFormProps } from '../types/todo';
 
-export default function TodoForm({ onSubmit, onCancel, initialData, isEditing = false }: TodoFormProps) {
+export default function TodoForm({ onSubmit, onCancel, initialData, isEditing = false, error }: TodoFormProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: ''
@@ -69,6 +69,12 @@ export default function TodoForm({ onSubmit, onCancel, initialData, isEditing = 
                 placeholder="Enter todo description"
               />
             </div>
+            
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
             
             <div className="flex justify-end gap-3 pt-4">
               <button

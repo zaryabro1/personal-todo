@@ -1,7 +1,7 @@
 import { Todo } from '../types/todo';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
+console.log('API_BASE_URL', API_BASE_URL);
 interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -43,9 +43,36 @@ class ApiService {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
+          // Use the message from the API response if available
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          
+          // Provide user-friendly messages for common HTTP status codes
+          if (response.status === 400) {
+            errorMessage = errorData.message || 'Invalid request. Please check your input.';
+          } else if (response.status === 401) {
+            errorMessage = errorData.message || 'Unauthorized. Please log in again.';
+          } else if (response.status === 403) {
+            errorMessage = errorData.message || 'Access forbidden.';
+          } else if (response.status === 404) {
+            errorMessage = errorData.message || 'Resource not found.';
+          } else if (response.status === 500) {
+            errorMessage = errorData.message || 'Server error. Please try again later.';
+          } else if (response.status >= 500) {
+            errorMessage = errorData.message || 'Server error. Please try again later.';
+          }
         } catch {
-          // If response is not JSON, use status text
+          // If response is not JSON, provide user-friendly messages based on status
+          if (response.status === 400) {
+            errorMessage = 'Invalid request. Please check your input.';
+          } else if (response.status === 401) {
+            errorMessage = 'Unauthorized. Please log in again.';
+          } else if (response.status === 403) {
+            errorMessage = 'Access forbidden.';
+          } else if (response.status === 404) {
+            errorMessage = 'Resource not found.';
+          } else if (response.status >= 500) {
+            errorMessage = 'Server error. Please try again later.';
+          }
         }
         throw new Error(errorMessage);
       }
@@ -62,13 +89,14 @@ class ApiService {
     } catch (error) {
       if (error instanceof Error) {
         // Check if it's a network/fetch error
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('Network request failed')) {
           const port = process.env.NEXT_PUBLIC_API_URL?.match(/:(\d+)/)?.[1] || '6969';
           throw new Error(`Cannot connect to server. Please make sure the backend server is running on port ${port}.`);
         }
+        // If it's already a formatted error message, throw it as is
         throw error;
       }
-      throw new Error('Network error occurred');
+      throw new Error('An unexpected error occurred. Please try again.');
     }
   }
 
