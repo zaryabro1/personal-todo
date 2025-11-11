@@ -19,4 +19,5 @@ export interface TodoFormProps {
   onCancel: () => void;
   initialData?: TodoFormData;
   isEditing?: boolean;
+  error?: string | null;
 }

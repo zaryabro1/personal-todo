@@ -8,6 +8,7 @@ import TodoForm from './components/TodoForm';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import AuthGuard from './components/AuthGuard';
 import { useAuth } from './contexts/AuthContext';
+import { useToast } from './contexts/ToastContext';
 import { apiService } from './services/api';
 
 function TodoApp() {
@@ -19,6 +20,7 @@ function TodoApp() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, logout } = useAuth();
+  const { showError, showSuccess } = useToast();
 
   // Fetch todos on mount and when user changes
   useEffect(() => {
@@ -48,7 +50,9 @@ function TodoApp() {
       }));
       setTodos(todosWithId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch todos');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch todos';
+      setError(errorMessage);
+      showError(errorMessage);
       console.error('Error fetching todos:', err);
     } finally {
       setIsLoading(false);
@@ -93,8 +97,11 @@ function TodoApp() {
       await fetchTodos();
       setShowForm(false);
       setEditingTodo(null);
+      showSuccess(editingTodo ? 'Todo updated successfully!' : 'Todo created successfully!');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save todo');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save todo';
+      setError(errorMessage);
+      showError(errorMessage);
       console.error('Error saving todo:', err);
     }
   };
@@ -102,6 +109,7 @@ function TodoApp() {
   const handleFormCancel = () => {
     setShowForm(false);
     setEditingTodo(null);
+    setError(null);
   };
 
   const handleToggleComplete = async (id: string) => {
@@ -112,8 +120,11 @@ function TodoApp() {
       await apiService.toggleTodoComplete(user.id, id);
       // Refresh todos list
       await fetchTodos();
+      showSuccess('Todo status updated successfully!');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update todo');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update todo';
+      setError(errorMessage);
+      showError(errorMessage);
       console.error('Error toggling todo:', err);
     }
   };
@@ -128,8 +139,11 @@ function TodoApp() {
       await fetchTodos();
       setShowDeleteModal(false);
       setTodoToDelete(null);
+      showSuccess('Todo deleted successfully!');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete todo');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete todo';
+      setError(errorMessage);
+      showError(errorMessage);
       console.error('Error deleting todo:', err);
       setShowDeleteModal(false);
       setTodoToDelete(null);
@@ -207,6 +221,7 @@ function TodoApp() {
             onCancel={handleFormCancel}
             initialData={editingTodo ? { title: editingTodo.title, description: editingTodo.description } : undefined}
             isEditing={!!editingTodo}
+            error={error}
           />
         )}
 
