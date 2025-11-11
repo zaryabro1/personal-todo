@@ -33,21 +33,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     // Frontend-only authentication for now
     // In a real app, this would call your API
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') {
+      return { success: false, error: 'Cannot authenticate in server environment' };
+    }
+    
+    // Validation
+    if (!email.trim()) {
+      return { success: false, error: 'Email is required' };
+    }
+    
+    if (!password) {
+      return { success: false, error: 'Password is required' };
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { success: false, error: 'Please enter a valid email address' };
+    }
     
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Check if user exists in localStorage (simple demo)
-    const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = storedUsers.find((u) => u.email === email && u.password === password);
-    
-    if (foundUser) {
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if user exists in localStorage (simple demo)
+      const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const foundUser = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      
+      if (!foundUser) {
+        setIsLoading(false);
+        return { success: false, error: 'Invalid email or password' };
+      }
+      
+      if (foundUser.password !== password) {
+        setIsLoading(false);
+        return { success: false, error: 'Invalid email or password' };
+      }
+      
       const userData: User = {
         id: foundUser.id,
         email: foundUser.email,
@@ -56,52 +83,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       setIsLoading(false);
-      return true;
+      return { success: true };
+    } catch (error) {
+      setIsLoading(false);
+      return { success: false, error: 'An error occurred during login. Please try again.' };
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const signup = async (email: string, password: string, name: string): Promise<boolean> => {
+  const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
     // Frontend-only authentication for now
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') {
+      return { success: false, error: 'Cannot sign up in server environment' };
+    }
+    
+    // Validation
+    if (!name.trim()) {
+      return { success: false, error: 'Name is required' };
+    }
+    
+    if (name.trim().length < 2) {
+      return { success: false, error: 'Name must be at least 2 characters long' };
+    }
+    
+    if (!email.trim()) {
+      return { success: false, error: 'Email is required' };
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { success: false, error: 'Please enter a valid email address' };
+    }
+    
+    if (!password) {
+      return { success: false, error: 'Password is required' };
+    }
+    
+    if (password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long' };
+    }
     
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Check if user already exists
-    const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-    const existingUser = storedUsers.find((u) => u.email === email);
-    
-    if (existingUser) {
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if user already exists
+      const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const existingUser = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      
+      if (existingUser) {
+        setIsLoading(false);
+        return { success: false, error: 'An account with this email already exists' };
+      }
+      
+      // Create new user
+      const newUser = {
+        id: Math.random().toString(36).substr(2, 9),
+        email: email.trim(),
+        password, // In production, this would be hashed
+        name: name.trim()
+      };
+      
+      storedUsers.push(newUser);
+      localStorage.setItem('users', JSON.stringify(storedUsers));
+      
+      const userData: User = {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       setIsLoading(false);
-      return false; // User already exists
+      return { success: true };
+    } catch (error) {
+      setIsLoading(false);
+      return { success: false, error: 'An error occurred during sign up. Please try again.' };
     }
-    
-    // Create new user
-    const newUser = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      password, // In production, this would be hashed
-      name
-    };
-    
-    storedUsers.push(newUser);
-    localStorage.setItem('users', JSON.stringify(storedUsers));
-    
-    const userData: User = {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name
-    };
-    
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setIsLoading(false);
-    return true;
   };
 
   const logout = () => {

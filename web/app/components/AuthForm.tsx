@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,25 +11,54 @@ export default function AuthForm() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const { login, signup, isLoading } = useAuth();
+  const { showError, showSuccess } = useToast();
+
+  // Debug: Log error changes
+  useEffect(() => {
+    if (error) {
+      console.log('Error state changed to:', error);
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (isLogin) {
-      const success = await login(email, password);
-      if (!success) {
-        setError('Invalid email or password');
+    try {
+      if (isLogin) {
+        const result = await login(email, password);
+        console.log('Login result:', result); // Debug log
+        
+        // Always check result.success explicitly
+        if (result.success === false) {
+          const errorMessage = result.error || 'Invalid email or password';
+          console.log('Login failed, setting error:', errorMessage); // Debug log
+          setError(errorMessage);
+          showError(errorMessage);
+        } else {
+          console.log('Login successful'); // Debug log
+          showSuccess('Login successful!');
+        }
+      } else {
+        const result = await signup(email, password, name);
+        console.log('Signup result:', result); // Debug log
+        
+        // Always check result.success explicitly
+        if (result.success === false) {
+          const errorMessage = result.error || 'Failed to create account';
+          console.log('Signup failed, setting error:', errorMessage); // Debug log
+          setError(errorMessage);
+          showError(errorMessage);
+        } else {
+          console.log('Signup successful'); // Debug log
+          showSuccess('Account created successfully!');
+        }
       }
-    } else {
-      if (!name.trim()) {
-        setError('Name is required');
-        return;
-      }
-      const success = await signup(email, password, name);
-      if (!success) {
-        setError('Email already exists');
-      }
+    } catch (err) {
+      console.log('Caught error in handleSubmit:', err); // Debug log
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -71,9 +101,14 @@ export default function AuthForm() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(''); // Clear error when user starts typing
+                }}
                 required
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 ${
+                  error ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                }`}
                 placeholder="Enter your email"
               />
             </div>
@@ -86,17 +121,31 @@ export default function AuthForm() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(''); // Clear error when user starts typing
+                }}
                 required
                 minLength={6}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 ${
+                  error ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                }`}
                 placeholder="Enter your password"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                {error}
+              <div 
+                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm"
+                role="alert"
+                aria-live="assertive"
+              >
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span className="flex-1 font-medium">{error}</span>
+                </div>
               </div>
             )}
 
